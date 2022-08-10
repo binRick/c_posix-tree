@@ -1,7 +1,4 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
-
+#pragma once
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,18 +8,7 @@
 #include <dirent.h>
 #include <limits.h> // PATH_MAX
 #include <unistd.h>
-
-#define INITIAL_STACK_SIZE 64
-#define STACK_CHUNK_SIZE 64
-
-/**
- * Implementacja stosu
- */
-typedef struct v_stack {
-  void** data;
-  unsigned int size; // ilość zaalokowanych int'ów
-  unsigned int count; // ilość elementów na stosie
-} v_stack;
+#include "posix-tree.h"
 
 v_stack v_stack_init() {
   return (v_stack) {
@@ -86,50 +72,6 @@ int v_stack_release(v_stack* stk, bool release_nested) {
   return 0;
 }
 
-/**
- * Implementacja tree
- */
-#define MAX_POSIX_FILENAME_LEN 256
-#define TREE_LEVEL_SPACING_LEN 3
-#define TREE_EDGE_CHARACTER "├"
-#define TREE_LINE_CHARACTER "─"
-#define TREE_ROW_CHARACTER "│"
-#define TREE_EDGE_TERMINATOR_CHARACTER "└"
-
-typedef struct tree_file {
-  unsigned char type; // DT_DIR, DT_REG
-  bool is_dir;
-  bool is_symlink;
-  char* name;
-  char* path;
-
-  // daty dostępu
-  time_t last_access_time;
-  time_t last_modificiation_time;
-
-  off_t size; // w bajtach rozmiar
-
-  // jeśli symlink
-  struct tree_file* symlink_dest;
-} tree_file;
-
-// informacje podsumowujące drzewo
-typedef struct tree_stats {
-  unsigned int files_count;
-  unsigned int dir_count;
-} tree_stats;
-
-// informacje używane do rysowania drzewa
-typedef struct tree_print_flags {
-  bool dir_only;
-  bool follow_symlinks;
-  bool print_full_path;
-  int max_level;
-} tree_print_flags;
-
-/**
- * Łączy dwie ścieżki
- */
 char* join_paths(const char* parent, const char* child) {
   if (!parent || !child)
     return NULL;
@@ -148,10 +90,6 @@ char* join_paths(const char* parent, const char* child) {
   return output;
 }
 
-/**
- * Listuje pliki w katalogu wskazanym w path.
- * Zwraca stos ze wskaźnikami do tree_file
- */
 v_stack tree_list_files(
     const char* path,
     struct tree_print_flags* flags) {
@@ -244,9 +182,6 @@ v_stack tree_list_files(
   return files;
 }
 
-/**
- * Usuwanie stosu z plikami, ścieżki są dynamicznie alokowane
- */
 void tree_free_file(tree_file* file) {
   free(file->path);
   free(file->name);
@@ -266,9 +201,6 @@ void tree_release_files(v_stack* stk) {
   v_stack_release(stk, false);
 }
 
-/**
- * Rysuje drzewo we wskazanej ścieżce
- */
 int tree_recursive_print(
     const char* path,
     struct v_stack* parents, // przechowuje flagi czy parent jest ostatnim elementem
@@ -373,9 +305,6 @@ int tree_recursive_print(
   return 0;
 }
 
-/**
- * Główna funkcja wyświetlająca i podsumowująca drzewo
- */
 void tree_print(
     const char* path,
     struct tree_print_flags* flags) {
@@ -403,14 +332,7 @@ void tree_print(
     printf("%d files\n", stats.files_count);
 }
 
-/**
- * Opcje:
- * -d Dir onlly
- * -L Max level
- * -l Follow symlinks
- * -f Print full path
- */
-int main(int argc, char* argv[]) {
+int tree_demo(){
   struct tree_print_flags flags = {
     .print_full_path = true,
     .dir_only = false,
@@ -418,7 +340,7 @@ int main(int argc, char* argv[]) {
     .max_level = 4,
   };
 
-  char* default_path = argv[1];
+  char* default_path = ".";
   if (default_path == NULL)
     default_path = ".";
 
